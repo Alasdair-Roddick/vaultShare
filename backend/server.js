@@ -406,7 +406,19 @@ function resolveStoragePath(storedPath) {
   return absolute;
 }
 
-function resolveDatabasePath(rawPath) {\n  if (!rawPath) {\n    const fallback = path.join(__dirname, 'database.db');\n    fs.mkdirSync(path.dirname(fallback), { recursive: true });\n    return fallback;\n  }\n\n  const resolved = path.isAbsolute(rawPath) ? rawPath : path.resolve(__dirname, rawPath);\n  fs.mkdirSync(path.dirname(resolved), { recursive: true });\n  return resolved;\n}\n\nfunction normalizeFileSize(rawValue, fallback) {
+function resolveDatabasePath(rawPath) {
+  if (!rawPath) {
+    const fallback = path.join(__dirname, 'database.db');
+    fs.mkdirSync(path.dirname(fallback), { recursive: true });
+    return fallback;
+  }
+
+  const resolved = path.isAbsolute(rawPath) ? rawPath : path.resolve(__dirname, rawPath);
+  fs.mkdirSync(path.dirname(resolved), { recursive: true });
+  return resolved;
+}
+
+function normalizeFileSize(rawValue, fallback) {
   const parsed = Number(rawValue);
   if (Number.isFinite(parsed) && parsed > 0) {
     return parsed;
@@ -434,6 +446,7 @@ function ensureColumn(database, table, column, definition) {
     }
   });
 }
+
 
 
 
