@@ -95,3 +95,19 @@ Existing files stored with the previous AES-256-CBC scheme remain accessible—t
 ---
 
 Need help with deployment hardening (HTTPS termination, reverse proxy, key rotation)? Document those environment assumptions before shipping.
+## Docker Compose
+
+The repository ships with `docker-compose.yml` that exposes Vaultlight on port `4311` (change the mapping if you need another port).
+
+```bash
+docker compose up --build -d
+```
+
+Environment defaults:
+
+- `PORT=4311` tells the backend which port to bind.
+- `DATABASE_PATH=/app/data/database.db` persists SQLite inside the `/app/data` mount.
+
+Volumes `./storage/uploads` and `./storage/database` are bind-mounted; make sure they are writable by Docker (`chmod 775 storage/uploads storage/database` on Linux).
+
+After the stack is up, open `http://<host-ip>:4311` from your Wi‑Fi clients.

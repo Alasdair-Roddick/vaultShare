@@ -9,13 +9,13 @@ RUN npm run build
 
 FROM node:22-bookworm-slim AS backend
 WORKDIR /app
-ENV NODE_ENV=production
+ENV NODE_ENV=production`nENV PORT=3001`nENV DATABASE_PATH=/app/data/database.db
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev
 COPY backend ./
 COPY --from=frontend-builder /app/dist ./public
 RUN npm prune --omit=dev \
- && mkdir -p uploads \
+ && mkdir -p uploads data \
  && groupadd --system vaultlight \
  && useradd --system --gid vaultlight --home /app vaultlight \
  && chown -R vaultlight:vaultlight /app
@@ -24,3 +24,5 @@ VOLUME ["/app/uploads"]
 EXPOSE 3001
 USER vaultlight
 CMD ["node", "server.js"]
+
+

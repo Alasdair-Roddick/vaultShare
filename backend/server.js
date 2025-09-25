@@ -23,6 +23,7 @@ const PORT = process.env.PORT || 3001;
 
 const uploadsDir = path.join(__dirname, 'uploads');
 const clientBuildDir = path.join(__dirname, 'public');
+const databasePath = resolveDatabasePath(process.env.DATABASE_PATH);
 fs.mkdirSync(uploadsDir, { recursive: true });
 
 const encryptionKey = loadEncryptionKey(process.env.ENCRYPTION_KEY);
@@ -43,7 +44,7 @@ app.use(cors({
 }));
 app.use(express.json({ limit: '1mb' }));
 
-const db = new sqlite3.Database(path.join(__dirname, 'database.db'));
+const db = new sqlite3.Database(databasePath);
 
 const diskStorage = multer.diskStorage({
   destination: (_req, _file, cb) => cb(null, os.tmpdir()),
@@ -405,7 +406,7 @@ function resolveStoragePath(storedPath) {
   return absolute;
 }
 
-function normalizeFileSize(rawValue, fallback) {
+function resolveDatabasePath(rawPath) {\n  if (!rawPath) {\n    const fallback = path.join(__dirname, 'database.db');\n    fs.mkdirSync(path.dirname(fallback), { recursive: true });\n    return fallback;\n  }\n\n  const resolved = path.isAbsolute(rawPath) ? rawPath : path.resolve(__dirname, rawPath);\n  fs.mkdirSync(path.dirname(resolved), { recursive: true });\n  return resolved;\n}\n\nfunction normalizeFileSize(rawValue, fallback) {
   const parsed = Number(rawValue);
   if (Number.isFinite(parsed) && parsed > 0) {
     return parsed;
@@ -433,6 +434,9 @@ function ensureColumn(database, table, column, definition) {
     }
   });
 }
+
+
+
 
 
 

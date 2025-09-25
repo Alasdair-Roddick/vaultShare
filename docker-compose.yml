@@ -3,14 +3,15 @@
     build: .
     container_name: vaultlight
     ports:
-      - "8080:3001"
+      - "4311:4311"
     env_file:
       - backend/.env
     environment:
-      PORT: "3001"
+      PORT: "4311"
+      DATABASE_PATH: "/app/data/database.db"
     volumes:
       - ./storage/uploads:/app/uploads
-      - ./storage/database/database.db:/app/database.db
+      - ./storage/database:/app/data
+    user: "0:0"
     restart: unless-stopped
 
-volumes: {}
