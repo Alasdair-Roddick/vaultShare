@@ -9,9 +9,11 @@
     environment:
       PORT: "4311"
       DATABASE_PATH: "/app/data/database.db"
+      TLS_CERT_PATH: "/app/certs/dev-cert.pem"
+      TLS_KEY_PATH: "/app/certs/dev-key.pem"
     volumes:
       - ./storage/uploads:/app/uploads
       - ./storage/database:/app/data
+      - ./certs:/app/certs:ro
     user: "0:0"
     restart: unless-stopped
-

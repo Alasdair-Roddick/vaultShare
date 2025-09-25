@@ -5,10 +5,10 @@ Vaultlight is a secure image and video sharing platform built with a Vite + Reac
 ## Feature Highlights
 
 - AES-256-GCM encryption with per-file IV and auth tag (legacy CBC files still stream).
-- Automatic MOV to MP4 conversion powered by FFmpeg (`ffmpeg-static`).
+- Automatic MOV → MP4 conversion powered by FFmpeg (`ffmpeg-static`).
 - Album-based sharing with opaque permalinks.
-- Streaming decryption so large videos never load fully into memory.
-- Hardened CORS + Helmet configuration and a Tailwind-powered UI.
+- Streaming decryption so large videos never fully load into memory.
+- Hardened Helmet configuration, CORS restrictions, and Tailwind-powered UI.
 
 ## Project Structure
 
@@ -22,51 +22,75 @@ root
 
 ## Prerequisites
 
-- Node.js 20+ (for both frontend and backend tooling)
-- npm 9+
-- No system FFmpeg required (the backend ships with `ffmpeg-static`)
+- Node.js 20+ and npm 9+
+- No system FFmpeg required (`ffmpeg-static` is bundled)
 
-## Setup
+## Backend Environment
 
-1. Install root dependencies (frontend):
-   ```bash
-   npm install
-   ```
-2. Install backend dependencies:
-   ```bash
-   cd backend
-   npm install
-   ```
-3. Create `backend/.env` with at least:
-   ```ini
-   ENCRYPTION_KEY= # 64 hex chars (32 bytes) or base64 32-byte key
-   CLIENT_ORIGINS=http://localhost:5173 # optional, comma-separated
-   MAX_FILE_SIZE_BYTES=104857600        # optional override (default 100MB)
-   ```
-   Generate a strong key (hex example):
-   ```bash
-   node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
-   ```
-4. (Optional) Configure the frontend API origin in `.env`:
-   ```ini
-   VITE_API_BASE_URL=http://localhost:3001
-   ```
+Create `backend/.env` with at least:
 
-## Running Locally
+```ini
+ENCRYPTION_KEY= # 64 hex chars (32 bytes) or base64-encoded 32-byte key
+CLIENT_ORIGINS=https://localhost:4311,http://localhost:4311
+MAX_FILE_SIZE_BYTES=104857600           # optional override (default 100 MB)
+PORT=4311                               # listening port
+DATABASE_PATH=/app/data/database.db     # SQLite location (inside container)
+TLS_CERT_PATH=/app/certs/dev-cert.pem   # optional – enable HTTPS when present
+TLS_KEY_PATH=/app/certs/dev-key.pem     # optional – enable HTTPS when present
+# TLS_CA_PATH=/app/certs/ca.pem         # optional chain bundle
+# TLS_PASSPHRASE=                       # optional private key passphrase
+```
+
+Generate a strong encryption key:
+
+```bash
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
+
+### HTTPS Certificates
+
+Vaultlight can serve HTTPS directly when `TLS_CERT_PATH` and `TLS_KEY_PATH` are provided. For local certificates you can use [mkcert](https://github.com/FiloSottile/mkcert):
+
+```bash
+mkcert -install
+mkcert -key-file certs/dev-key.pem -cert-file certs/dev-cert.pem 192.168.1.126 localhost
+```
+
+The Compose file mounts `./certs` read-only at `/app/certs`; keep real/private certificates outside of source control (the directory is excluded via `.dockerignore`).
+
+## Running Locally (development mode)
 
 In two terminals:
 
 ```bash
-# Terminal 1 – backend
+# Terminal 1 – backend (HTTP by default)
 cd backend
+npm install
 npm run dev
 
-# Terminal 2 – frontend
+# Terminal 2 – frontend dev server
+npm install
 npm run dev
 ```
 
-- Backend listens on `http://localhost:3001` by default.
-- Frontend dev server runs on `http://localhost:5173`.
+- Backend listens on `http://localhost:3001` unless `PORT` is provided.
+- Frontend dev server runs on `http://localhost:5173` and proxies to the backend via `VITE_API_BASE_URL` (default fallback is the current origin).
+
+## Docker Compose Runtime
+
+A production-ish stack ships via `docker-compose.yml`, exposing HTTPS on port `4311`.
+
+```bash
+docker compose up --build -d
+```
+
+Environment summary:
+
+- `PORT=4311` – HTTPS listener inside the container.
+- `DATABASE_PATH=/app/data/database.db` – SQLite location (bind-mounted).
+- `TLS_CERT_PATH` / `TLS_KEY_PATH` – mount TLS material from `./certs`.
+
+Volumes `./storage/uploads` and `./storage/database` are bind-mounted; ensure they are writable (`chmod 775 storage/uploads storage/database` on Linux / adjust ACLs on Windows). After the stack is running with a trusted certificate, open `https://<host-ip>:4311` across your network.
 
 ## Key Endpoints
 
@@ -78,15 +102,16 @@ npm run dev
 
 ## Security Notes
 
-- Encryption happens before data touches persistent storage; temporary files are deleted immediately after encryption.
-- MOV uploads are transcoded to H.264/AAC MP4 to guarantee playback in modern browsers.
-- Streaming decryption keeps memory usage stable for large videos.
-- Use `CLIENT_ORIGINS` to restrict CORS in production.
+- Encryption happens before data touches persistent storage; temp files are removed after encryption.
+- MOV uploads transcode to H.264/AAC MP4 to guarantee playback across browsers.
+- Streaming decryption keeps memory usage stable for large media.
+- `CLIENT_ORIGINS` restricts CORS; include every scheme/host that needs access.
+- Run with HTTPS enabled in production; browsers will otherwise warn about mixed security contexts.
 - Rotate `ENCRYPTION_KEY` periodically (requires re-encrypting existing assets).
 
 ## Styling
 
-The frontend uses Tailwind CSS (`tailwind.config.js`) with a custom brand palette. Modify `tailwind.config.js` and `src/index.css` to extend the design system.
+The frontend uses Tailwind CSS (`tailwind.config.js`) with a custom brand palette. Update `tailwind.config.js` and `src/index.css` to evolve the design system.
 
 ## Legacy Compatibility
 
@@ -94,20 +119,4 @@ Existing files stored with the previous AES-256-CBC scheme remain accessible—t
 
 ---
 
-Need help with deployment hardening (HTTPS termination, reverse proxy, key rotation)? Document those environment assumptions before shipping.
-## Docker Compose
-
-The repository ships with `docker-compose.yml` that exposes Vaultlight on port `4311` (change the mapping if you need another port).
-
-```bash
-docker compose up --build -d
-```
-
-Environment defaults:
-
-- `PORT=4311` tells the backend which port to bind.
-- `DATABASE_PATH=/app/data/database.db` persists SQLite inside the `/app/data` mount.
-
-Volumes `./storage/uploads` and `./storage/database` are bind-mounted; make sure they are writable by Docker (`chmod 775 storage/uploads storage/database` on Linux).
-
-After the stack is up, open `http://<host-ip>:4311` from your Wi‑Fi clients.
+Need help with deployment hardening (reverse proxy, backups, key rotation)? Document those requirements before shipping.

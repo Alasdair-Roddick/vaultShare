@@ -9,7 +9,9 @@ RUN npm run build
 
 FROM node:22-bookworm-slim AS backend
 WORKDIR /app
-ENV NODE_ENV=production`nENV PORT=3001`nENV DATABASE_PATH=/app/data/database.db
+ENV NODE_ENV=production \
+    PORT=4311 \
+    DATABASE_PATH=/app/data/database.db
 COPY backend/package.json backend/package-lock.json ./
 RUN npm ci --omit=dev
 COPY backend ./
@@ -20,9 +22,7 @@ RUN npm prune --omit=dev \
  && useradd --system --gid vaultlight --home /app vaultlight \
  && chown -R vaultlight:vaultlight /app
 
-VOLUME ["/app/uploads"]
-EXPOSE 3001
+VOLUME ["/app/uploads", "/app/data"]
+EXPOSE 4311
 USER vaultlight
 CMD ["node", "server.js"]
-
-

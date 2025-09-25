@@ -4,6 +4,7 @@ const express = require('express');
 const multer = require('multer');
 const path = require('path');
 const fs = require('fs');
+const https = require('https');
 const os = require('os');
 const sqlite3 = require('sqlite3').verbose();
 const { v4: uuidv4 } = require('uuid');
@@ -19,7 +20,10 @@ if (ffmpegStatic) {
 }
 
 const app = express();
-const PORT = process.env.PORT || 3001;
+const HOST = process.env.HOST || '0.0.0.0';
+const PORT = Number(process.env.PORT || 3001);
+const tlsConfig = loadTlsConfig();
+const isHttpsEnabled = Boolean(tlsConfig);
 
 const uploadsDir = path.join(__dirname, 'uploads');
 const clientBuildDir = path.join(__dirname, 'public');
@@ -31,7 +35,17 @@ const DEFAULT_MAX_FILE_SIZE = 100 * 1024 * 1024;
 const maxFileSize = normalizeFileSize(process.env.MAX_FILE_SIZE_BYTES, DEFAULT_MAX_FILE_SIZE);
 const allowedOrigins = parseAllowedOrigins(process.env.CLIENT_ORIGINS);
 
-app.use(helmet({ crossOriginResourcePolicy: false }));
+const helmetOptions = {
+  crossOriginResourcePolicy: false,
+  permissionsPolicy: false,
+};
+
+if (!isHttpsEnabled) {
+  helmetOptions.crossOriginOpenerPolicy = false;
+  helmetOptions.originAgentCluster = false;
+}
+
+app.use(helmet(helmetOptions));
 app.use(cors({
   origin: (origin, callback) => {
     if (!origin || allowedOrigins.length === 0 || allowedOrigins.includes(origin)) {
@@ -252,9 +266,16 @@ app.use((err, _req, res, _next) => {
   return res.status(500).json({ error: 'Internal server error' });
 });
 
-app.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+if (isHttpsEnabled) {
+  https.createServer(tlsConfig.credentials, app).listen(PORT, HOST, () => {
+    console.log(`HTTPS server running on port ${PORT}`);
+  });
+} else {
+  app.listen(PORT, HOST, () => {
+    console.log(`HTTP server running on port ${PORT}`);
+  });
+
+}
 
 function loadEncryptionKey(rawKey) {
   if (!rawKey) {
@@ -406,6 +427,39 @@ function resolveStoragePath(storedPath) {
   return absolute;
 }
 
+function loadTlsConfig() {
+  const certPath = process.env.TLS_CERT_PATH;
+  const keyPath = process.env.TLS_KEY_PATH;
+
+  if (!certPath && !keyPath) {
+    return null;
+  }
+
+  if (!certPath || !keyPath) {
+    throw new Error('TLS_CERT_PATH and TLS_KEY_PATH must both be provided to enable HTTPS');
+  }
+
+  const credentials = {
+    cert: fs.readFileSync(resolveTlsPath(certPath)),
+    key: fs.readFileSync(resolveTlsPath(keyPath)),
+  };
+
+  if (process.env.TLS_CA_PATH) {
+    credentials.ca = fs.readFileSync(resolveTlsPath(process.env.TLS_CA_PATH));
+  }
+
+  if (process.env.TLS_PASSPHRASE) {
+    credentials.passphrase = process.env.TLS_PASSPHRASE;
+  }
+
+  return { credentials };
+}
+
+function resolveTlsPath(targetPath) {
+  return path.isAbsolute(targetPath)
+    ? targetPath
+    : path.resolve(__dirname, targetPath);
+}
 function resolveDatabasePath(rawPath) {
   if (!rawPath) {
     const fallback = path.join(__dirname, 'database.db');
@@ -446,6 +500,18 @@ function ensureColumn(database, table, column, definition) {
     }
   });
 }
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

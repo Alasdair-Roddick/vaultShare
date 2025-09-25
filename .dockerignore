@@ -9,3 +9,4 @@ backend/database.db
 backend/.env
 backend/node_modules
 dist
+certs
