@@ -1,0 +1,16 @@
+﻿services:
+  vaultlight:
+    build: .
+    container_name: vaultlight
+    ports:
+      - "8080:3001"
+    env_file:
+      - backend/.env
+    environment:
+      PORT: "3001"
+    volumes:
+      - ./storage/uploads:/app/uploads
+      - ./storage/database/database.db:/app/database.db
+    restart: unless-stopped
+
+volumes: {}
